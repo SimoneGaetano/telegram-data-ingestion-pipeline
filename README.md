@@ -22,4 +22,4 @@ Progetto originariamente ingegnerizzato in locale per ottimizzazione delle risor
 *   **Ottimizzazione API:** Il passaggio al Cloud consentirà di sostituire il meccanismo di Polling locale con i veri **Webhook HTTPS**, azzerando il carico computazionale della macchina quando il bot è inattivo.
 
 ## 👨‍💻 Note di Sviluppo
-Ho sviluppato questo progetto per fare un salto dal frontend (Flutter) al backend puro. Volevo capire come manipolare le API senza una GUI. Durante lo sviluppo in locale su Docker ho dovuto combattere con gli errori di HTTPS di Telegram, che ho risolto usando il Polling, e con un errore di chiave primaria duplicata su Postgres perché n8n provava a sovrascrivere l'ID della chat sulla colonna SERIAL
+Ho sviluppato questo progetto per fare un salto dal frontend (Flutter) al backend puro. Volevo capire come manipolare le API senza una GUI. Durante lo sviluppo in locale su Docker ho dovuto combattere con gli errori di HTTPS di Telegram, che ho risolto usando il Polling, e con un errore di chiave primaria duplicata su Postgres perché n8n provava a sovrascrivere l'ID della chat sulla colonna SERIAL.

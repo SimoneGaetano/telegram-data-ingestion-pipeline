@@ -1,0 +1,303 @@
+{
+  "name": "telegram-data-ingestion-pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds",
+              "secondsInterval": 5
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        0
+      ],
+      "id": "ac85c5d5-8e2c-4d0a-94fc-2f6f1ebf3809",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://api.telegram.org/bot8644506500:AAH6YLWdiiVZdVtHsOKZLJOSD9Hjw3icF0A/getUpdates",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "3db4e70d-cc57-4abc-b672-4f4aa5ba1968",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Recupera l'input dal nodo HTTP Request\nconst items = $input.all();\nif (!items || items.length === 0) return [];\n\nconst inputData = items[0].json;\n\n// Prende la lista dei messaggi (result)\nconst resultList = inputData.result;\nif (!resultList || !Array.isArray(resultList) || resultList.length === 0) {\n  return [{ json: { info: \"Nessun messaggio trovato\" } }];\n}\n\n// Prende l'ultimo messaggio ricevuto in ordine cronologico\nconst ultimoElemento = resultList[resultList.length - 1];\nconst telegramData = ultimoElemento.message;\n\nif (!telegramData) return [];\n\nconst testoCompleto = telegramData.text || \"\";\nconst chatId = telegramData.chat?.id;\nconst username = telegramData.from?.username || \"Utente Anonimo\";\n\n// Estrae i numeri dal testo del messaggio (es: \"10\")\nconst numeriTrovati = testoCompleto.match(/\\d+(\\.\\d+)?/);\nconst cifra = numeriTrovati ? parseFloat(numeriTrovati[0]) : 0;\n\n// Isola la categoria cercando la parola \"per\"\nlet categoria = \"Generica\";\nif (testoCompleto.toLowerCase().includes(\" per \")) {\n  const parti = testoCompleto.split(/ per /i);\n  if (parti.length > 1) {\n    categoria = parti[1].trim();\n  }\n}\n\nreturn [{\n  json: {\n    chat_id: chatId,\n    username: username,\n    testo_originale: testoCompleto,\n    cifra: cifra,\n    categoria: categoria,\n    data_spesa: new Date().toISOString()\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "0d3024cd-fd06-42b6-a756-87eea3139e8b",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "spese",
+          "mode": "list",
+          "cachedResultName": "spese"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "chat_id": "={{ $json.chat_id }}",
+            "cifra": "={{ $json.cifra }}",
+            "username": "={{ $json.username }}",
+            "testo_originale": "={{ $json.testo_originale }}",
+            "categoria": "={{ $json.categoria }}",
+            "data_spesa": "={{ $json.data_spesa }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "username",
+              "displayName": "username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "testo_originale",
+              "displayName": "testo_originale",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cifra",
+              "displayName": "cifra",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "categoria",
+              "displayName": "categoria",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "data_spesa",
+              "displayName": "data_spesa",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        832,
+        0
+      ],
+      "id": "6ddf8c38-affe-448f-bb44-d478ffb8f491",
+      "name": "Insert rows in a table",
+      "credentials": {
+        "postgres": {
+          "id": "PguOgRYQgpUHEM8f",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtHour": 21
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        208
+      ],
+      "id": "a4b91b09-9442-4638-9ed3-aec89fb7dea2",
+      "name": "Schedule Trigger1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n    categoria, \n    SUM(cifra) as totale_categoria,\n    (SELECT SUM(cifra) FROM spese WHERE data_spesa >= NOW() - INTERVAL '7 days') as totale_complessivo\nFROM spese \nWHERE data_spesa >= NOW() - INTERVAL '7 days'\nGROUP BY categoria;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        416,
+        208
+      ],
+      "id": "2b22b1d1-37f9-47ae-b820-3d6abbeb7a72",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "PguOgRYQgpUHEM8f",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8644506500:AAH6YLWdiiVZdVtHsOKZLJOSD9Hjw3icF0A/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "912125235"
+            },
+            {
+              "name": "text",
+              "value": "=📊 REPORT SPESE SETTIMANALE 📊  Hai speso in totale: {{ $json.totale_complessivo || 0 }}€ Dettaglio categoria: {{ $json.categoria || 'Nessuna' }} -> {{ $json.totale_categoria || 0 }}€"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        624,
+        208
+      ],
+      "id": "479a315b-a98d-4571-aab3-c0fa53e1c503",
+      "name": "HTTP Request1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "2336be0a-c262-42ce-aef3-c6cfd9b63d8a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d4e800cc17066c8c4ebb7ba47cb71fd9dcaed8c182b49fe08b175055233bad32"
+  },
+  "id": "7Io4PwcFY6UjPcFj",
+  "tags": []
+}
